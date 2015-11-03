@@ -27,17 +27,18 @@
 #' @author A P Smith
 #' @author M Tfaily
 #' 
-#' @import reshape2 plyr
+#' @import reshape2 plyr assertthat
 #' 
 
 library(reshape2)
 library(plyr)
+library(assertthat)
 
 countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
                                ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13'),
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
-                               maxColReads = 10, verbose=TRUE){
+                               maxColReads = 10, as.freq=FALSE, verbose=TRUE){
   
   header.df <- read.csv(fileIn, nrows=1)
   
@@ -78,22 +79,50 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='co
     
     #assign counts to each sample based on the ratios associated with each mass
     temp.df <- ddply(data.df, c('sample'), function(xx){
-      data.frame (
-        Lipids = sum(xx$HtoC >= 1.55 & xx$OtoC <= 0.3, na.rm = TRUE),
-        UnSaturated_Hydrocarbons = sum(xx$OtoC > 0.05 & xx$OtoC < 0.15 & 
-                                         xx$HtoC < 1.5 & xx$HtoC > 0.7, na.rm = TRUE) ,
-        Proteins = sum(xx$OtoC > 0.3 & xx$OtoC < 0.55 & 
-                         xx$HtoC > 1.45 & xx$HtoC < 2, na.rm = TRUE) ,
-        Lignin = sum(xx$OtoC > 0.28 & xx$OtoC < 0.65 & 
-                       xx$HtoC < 1.45 & xx$HtoC > 0.81, na.rm = TRUE) , 
-        Carbohydrates = sum(xx$OtoC < 1 & xx$OtoC > 0.68 & 
-                              xx$HtoC > 1.48 & xx$HtoC < 2.15, na.rm = TRUE) , 
-        Amino_Sugars = sum(xx$OtoC < .71 & xx$OtoC > 0.54 & 
-                             xx$HtoC > 1.34 & xx$HtoC < 1.8, na.rm = TRUE) , 
-        Tannins = sum(xx$OtoC < 1.05 & xx$OtoC > 0.65 & 
-                        xx$HtoC > 0.7 & xx$HtoC < 1.3, na.rm = TRUE) , 
-        Condensed_Hydrocarbons = sum(xx$OtoC < .7 & xx$OtoC > 0.12 & 
-                                       xx$HtoC < .81 & xx$HtoC > .3, na.rm = TRUE) , 
+      categoryCuts <- function(ranges=list(OtoC=c(0,1)), 
+                               inclusive=list(OtoC=c(TRUE, TRUE)), na.rm=TRUE){
+        assert_that(identical(names(ranges), names(inclusive) ))
+        
+        ans = 1
+        
+        for(nameStr in names(ranges)){
+          ans <- ans *((ranges[[nameStr]][1] < xx[[nameStr]]) + 
+                          inclusive[[nameStr]][1]*(ranges[[nameStr]][1]==xx[[nameStr]]))*
+                      ((ranges[[nameStr]][2] > xx[[nameStr]]) + 
+                          inclusive[[nameStr]][2]*(ranges[[nameStr]][2]==xx[[nameStr]]))
+        }
+        
+        return(sum(ans > 0, na.rm=TRUE))
+      }
+      
+      #NEW BOUNDARIES that we have been using: (M Tfaily)
+      #class   O:C(low) O:C(high) H:C(low) H:C(high)
+      #lipid     >0     0.3       1.5        2.5
+      #unsatHC    0     0.125     0.8       <1.5
+      #condHC     0     0.95      0.2       <0.8
+      #protein   >0.3   0.55      1.5        2.3
+      #aminosugar>0.55  0.7       1.5        2.2
+      #carb      >0.7   1.5       1.5        2.5
+      #lignin    >0.125 0.65      0.8       <1.5
+      #tannin    >0.65  1.1       0.8       <1.5
+      
+      data.frame (Lipids = categoryCuts(ranges=list(OtoC=c(0, 0.3), HtoC=c(1.5, 2.5)), 
+                                     inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE,TRUE))),
+        UnSaturated_Hydrocarbons = categoryCuts(ranges=list(OtoC=c(0, 0.125), HtoC=c(0.8, 1.5)), 
+                                                inclusive=list(OtoC=c(TRUE, TRUE), HtoC=c(TRUE,FALSE))),
+        Condensed_Hydrocarbons   = categoryCuts(ranges=list(OtoC=c(0, 0.95), HtoC=c(0.2, 0.8)), 
+                                                inclusive=list(OtoC=c(TRUE, TRUE), HtoC=c(TRUE,FALSE))), 
+        Proteins = categoryCuts(ranges=list(OtoC=c(0.3, 0.55), HtoC=c(1.5, 2.3)), 
+                                inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE,TRUE))) ,
+        Amino_Sugars = categoryCuts(ranges=list(OtoC=c(0.55, 0.7), HtoC=c(1.5,2.2)), 
+                                    inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE, TRUE))) , 
+        Carbohydrates = categoryCuts(ranges=list(OtoC=c(0.7, 1.5), HtoC=c(1.5, 2.5)), 
+                                     inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE,TRUE))) , 
+        Lignin = categoryCuts(ranges=list(OtoC=c(0.125, 0.65), HtoC=c(0.8, 1.5)), 
+                              inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE, FALSE))) , 
+        Tannins = categoryCuts(ranges=list(OtoC=c(0.65, 1.1), HtoC=c(0.8, 1.5)), 
+                              inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE, FALSE))), 
+        
         Count = sum(xx$C >= 0, na.rm = TRUE),
         CHO = sum(xx$C > 0 & xx$N == 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE ), 
         CHON = sum(xx$C > 0 & xx$N > 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE ),
@@ -112,6 +141,13 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='co
     temp.df$Other <- temp.df$Count-rowSums(temp.df[,c('Lipids', 'UnSaturated_Hydrocarbons', 'Proteins', 'Lignin', 'Carbohydrates', 'Amino_Sugars', 'Tannins', 'Condensed_Hydrocarbons')])
     
     compounds.df <- rbind.fill(compounds.df, temp.df)
+  }
+  
+  
+  if(as.freq){
+    compounds.df <- ddply(compounds.df, c('sample', 'Count', 'aveOtoC', 'aveHtoC'), function(xx){
+      return(xx <- xx[!names(xx) %in% c('sample', 'Count', 'aveOtoC', 'aveHtoC')]/xx$Count)
+    })
   }
   
   compounds.df <- compounds.df[,c(1:10, 22, 11:21)]

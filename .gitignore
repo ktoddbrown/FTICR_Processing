@@ -8,3 +8,7 @@ private/*
 .RData
 
 .Rhistory
+
+countCompoundTypesOutput.csv
+
+data/FTICRoutput.csv
