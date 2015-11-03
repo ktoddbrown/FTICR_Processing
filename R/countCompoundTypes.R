@@ -35,8 +35,8 @@ library(plyr)
 
 countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
-                               ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13', 'Na'),
-                               sampleRegStr = '(X.out)|(^X\\d+$)|(std)',
+                               ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13'),
+                               sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
                                maxColReads = 10, verbose=TRUE){
   
   header.df <- read.csv(fileIn, nrows=1)
