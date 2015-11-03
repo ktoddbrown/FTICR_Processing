@@ -1,0 +1,23 @@
+---
+title: "README"
+author: "K Todd-Brown (ktoddbrown@gmail.com)"
+date: "October 26, 2015"
+output: html_document
+---
+Future package planning: 
+
+Vignette proposed
+- significance of abundence across treatments
+- histogram: Abundence of type X (ie 'lipid') across samples
+
+Function wish list
+- NMNDNS (NMDS) and PCA (package, vegan/FactorMineR already does alot of this)
+- Van Krevelen (H:C vs O:C)
+  + color plot based on N/S inclusion
+  + color on mass to charge (M:Z)
+- histogram of O2, O3, O4 (...) counts/relative abundence
+- Kendric plot
+  + mass vs Kendric mass defect (mass/ [mass of CH2 or COO])
+- average of ratio (ie O:C) option to weight by intensity
+- plot C number vs HC/DEB/OC
+- Cluster analysis of presence/absence for mass:charge

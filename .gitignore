@@ -3,3 +3,8 @@
 
 private/*
 *.Rproj
+.Rproj.user
+
+.RData
+
+.Rhistory
