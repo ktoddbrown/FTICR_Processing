@@ -1,5 +1,3 @@
-library(ggplot2)
-source('readFTICR.R')
 
 makeOxyHist <- function(fileIn='FTICRInputFile.csv',
                         massHeader = c('Mass','m.z'),

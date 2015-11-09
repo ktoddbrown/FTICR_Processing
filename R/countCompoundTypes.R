@@ -29,11 +29,6 @@
 #' 
 #' @import reshape2 plyr assertthat
 #' 
-
-library(reshape2)
-library(plyr)
-library(assertthat)
-
 countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
                                ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13'),
@@ -44,15 +39,8 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='co
   
   header.df <- read.csv(fileIn, nrows=1)
   
-  ###Create mass to charge ratio table for all masses
-  massCols <- as.character(names(header.df) %in% c(massHeader, ratioHeaders))
-  massCols[names(header.df) %in% c(massHeader, ratioHeaders)] <- 'numeric'
-  massCols[!names(header.df) %in% c(massHeader, ratioHeaders)] <- 'NULL'
-  massCharacteristic <- read.csv(fileIn, colClasses=massCols)
-  massCharacteristic$OtoC <- massCharacteristic$O/massCharacteristic$C
-  massCharacteristic$HtoC <- massCharacteristic$H/massCharacteristic$C
-  massCharacteristic$AImod <- (1 + massCharacteristic$C - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$H*0.5)/(massCharacteristic$C - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$N - massCharacteristic$P)
-  
+  massCharacteristic <- readMass(fileIn, massHeader, elementHeader, verbose)
+ 
   ###Create the mass counts for each sample
   compounds.df <- data.frame()
   sampleCols <- grepl(sampleRegStr, names(header.df))

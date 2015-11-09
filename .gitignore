@@ -12,3 +12,5 @@ private/*
 countCompoundTypesOutput.csv
 
 data/FTICRoutput.csv
+
+.Rbuildignore

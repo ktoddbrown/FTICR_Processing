@@ -1,5 +1,3 @@
-library(ggplot2)
-
 makeVanKrevelen <- function(fileIn='FTICRInputFile.csv',
                             massHeader = c('Mass','m.z'),
                                ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13'),

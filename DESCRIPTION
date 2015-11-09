@@ -1,0 +1,12 @@
+Package: FTICRProcessing
+Type: Package
+Title: R package for post-processing of FT-ICR-MS data with a focus on organic carbons
+Version: 0.1
+Date: 2015-10-17
+Authors@R: person("K", "Todd-Brown", email="ktoddbrown@gmail.com", role= c("cre", "aut"))
+Description: This package contains several functions for post-processing of MS data with a focus on organic carbon classification.
+License: MIT + file LICENSE
+LazyData: TRUE
+Imports: assertthat, plyr, reshape2
+Suggests: testthat, knitr, ggplot2
+VignetteBuilder: knitr
