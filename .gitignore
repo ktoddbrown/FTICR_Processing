@@ -9,8 +9,6 @@ private/*
 
 .Rhistory
 
-countCompoundTypesOutput.csv
-
 data/FTICRoutput.csv
 
 .Rbuildignore
