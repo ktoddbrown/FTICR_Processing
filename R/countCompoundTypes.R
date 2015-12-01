@@ -22,22 +22,31 @@
 #' 
 #' @import reshape2 plyr assertthat
 #' @export
-countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
+countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', 
+                               fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
-                               carbonHeader = c('C', 'X13C', 'C13')[1],
+                               elementKey = list(C='C', H='H', O='O', N='N', S='S', P='P'),
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
                                maxColReads = 10, 
                                calculateClass=c('compound', 'molecular', 'aromaticity'), 
                                verbose=FALSE){
-  #@date October 2015
-  #' @author K Todd-Brown \email{ktoddbrown@gmail.com}
-  #' @author A P Smith
-  #' @author M Tfaily
-  header.df <- read.csv(fileIn, nrows=1)
   
-  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, carbonHeader=carbonHeader, verbose=verbose)
+  ##Check that we have all the mass characterizations that we need
+  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, elementKey=elementKey, verbose=verbose)
+  if(verbose) cat('reading in mass characteristics: [', names(massCharacteristic), ']\n')
+  if('molecular' %in% calculateClass){
+    assert_that(c('C', 'N', 'S', 'P') %in% names(massCharacteristic))
+  }
+  if('compound' %in% calculateClass){
+    assert_that(c('OtoC', 'HtoC') %in% names(massCharacteristic))
+  }
+  if('aromaticity' %in% calculateClass){
+    assert_that(c('OtoC', 'HtoC', 'N', 'AImod') %in% names(massCharacteristic))
+  }
  
   ###Create the mass counts for each sample
+  header.df <- read.csv(fileIn, nrows=1)
+  
   compounds.df <- data.frame()
   sampleCols <- grepl(sampleRegStr, names(header.df))
   splitCol.ls <- split(1:sum(sampleCols), ceiling(seq_along(1:sum(sampleCols))/maxColReads))

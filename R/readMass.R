@@ -1,43 +1,77 @@
 #' Read in characteristics of the mass to charge ratios
 #' 
-#' We assume that the elemental headers in the file are: 'H', 'O', 'N', 'S', 'P'. Carbon headers can be passed as arguments 
 #'
 #' @param fileIn a string identifying the csv file to read our data from
 #' @param massHeader an array of strings or single string naming the mass to charge header
-#' @param carbonHeader an array of strings or single string naming the carbon headers
+#' @param elementKey a list of all the column names to be counted for each element
 #' @param verbose boolean flag for verbose outputs
 #'
-#' @return a data frame with the long table format with the sample ID, mass ID, and intensity
-#' @export
+#' @return a data frame with the mass, orginal elements [if names different from standard], 
+#' element count, and metrics [if appropreate elements are present]
+#' @examples
+#' ##massHeader can have extra entries that will be ignored
+#' #readMass(fileIn='testfile.csv', massHeader=c('m.z', 'mass', 'nonsence'))
+#' 
+#' ##elementKey can contain isotopes which will be included in the final element count
+#' #readMass(fileIn='testfile.csv', massHeader='m.z', elementKey=list(C=c('C13', 'C'),
+#' #H='H', O='O', N=c('N', 'N15'), S='S', P='P'))
+#' 
 #' @import assertthat
 #'
-readMass <-  function(fileIn='data/smallTest.csv',
-                       massHeader = c('Mass','m.z'),
-                       carbonHeader = c('C', 'X13C', 'C13')[1],
+#' @export
+readMass <-  function(fileIn, massHeader = 'Mass',
+                       elementKey = list(C='C', H='H', O='O', N='N', S='S', P='P'),
                        verbose=FALSE){
   assert_that(file.exists(fileIn))
   
   if(verbose) cat('reading in from file [', fileIn, ']\n')
   header.df <- read.csv(fileIn, nrows=1)
   
-  elementHeader <- c(carbonHeader, 'H','O', 'N', 'S', 'P')
+  elementHeader <- unlist(elementKey)
   ###Create mass to charge ratio table for all masses
   
-  if(verbose) cat('reading in mass characteristics\n')
+  if(verbose) cat('reading in mass characteristics for colms [',elementHeader,']\n')
   massCols <- as.character(names(header.df) %in% c(massHeader, elementHeader))
   massCols[names(header.df) %in% c(massHeader, elementHeader)] <- 'numeric'
   massCols[!names(header.df) %in% c(massHeader, elementHeader)] <- 'NULL'
   massCharacteristic <- read.csv(fileIn, colClasses=massCols)
-  
-  if(verbose) cat('calculating: OtoC, HtoC, AImod\n')
-  massCharacteristic$OtoC <- massCharacteristic$O/sum(massCharacteristic[names(massCharacteristic) %in% carbonHeader])
-  massCharacteristic$HtoC <- massCharacteristic$H/sum(massCharacteristic[names(massCharacteristic) %in% carbonHeader])
-  
-  #Koch, B. P. and Dittmar, T.: From mass to structure: an aromaticity index for high-resolution mass data of natural organic matter, Rapid Commun. Mass Spectrom., 20(5), 926–932, doi:10.1002/rcm.2386, 2006.
-  massCharacteristic$DBE <- 1+ 0.5*(2*sum(massCharacteristic[names(massCharacteristic) %in%  carbonHeader]) - massCharacteristic$H + massCharacteristic$N + massCharacteristic$P)
-  massCharacteristic$AI <- (1 + sum(massCharacteristic[names(massCharacteristic) %in%  carbonHeader]) - massCharacteristic$O - massCharacteristic$S - massCharacteristic$H*0.5)/(sum(massCharacteristic[names(massCharacteristic) %in%  carbonHeader]) - massCharacteristic$O - massCharacteristic$S - massCharacteristic$N - massCharacteristic$P)
-  massCharacteristic$AImod <- (1 + sum(massCharacteristic[names(massCharacteristic) %in%  carbonHeader]) - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$H*0.5)/(sum(massCharacteristic[names(massCharacteristic) %in%  carbonHeader]) - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$N - massCharacteristic$P)
   if(verbose) print(head(massCharacteristic))
+  
+  ##Force expected naming conventions
+  for(elementStr in names(elementKey)){
+    if(sum(names(massCharacteristic) %in% elementKey[[elementStr]]) == 0){
+      stop('column name in elementKey does not match csv table: ', elementKey[elementStr])
+    }
+    if(sum(names(massCharacteristic) %in% elementKey[[elementStr]]) > 1){
+      if(verbose) cat('merging', elementStr,'counts \n')
+      massCharacteristic[[elementStr]] <- rowSums(massCharacteristic[,names(massCharacteristic) %in% elementKey[[elementStr]]])
+    }else{
+      if(verbose) cat('forcing',elementStr,'header name \n')
+      massCharacteristic[[elementStr]] <- massCharacteristic[,names(massCharacteristic) %in% elementKey[[elementStr]]]
+    }
+  }
+
+  if(verbose) print(head(massCharacteristic))
+  
+  ###Make metrics
+  if(all(c('C', 'H', 'O') %in% names(elementKey))){
+    if(verbose) cat('calculating: OtoC, HtoC\n')
+    massCharacteristic$OtoC <- massCharacteristic$O/massCharacteristic$C
+    massCharacteristic$HtoC <- massCharacteristic$H/massCharacteristic$C
+    
+    if(all(c('N', 'S', 'P') %in% names(elementKey))){
+      if(verbose) cat('calculating: DBE, AI, AImod')
+      #Koch, B. P. and Dittmar, T.: From mass to structure: an aromaticity index for high-resolution mass data of natural organic matter, Rapid Commun. Mass Spectrom., 20(5), 926–932, doi:10.1002/rcm.2386, 2006.
+      massCharacteristic$DBE <- 1+ 0.5*(2*massCharacteristic$C - massCharacteristic$H + massCharacteristic$N + massCharacteristic$P)
+      massCharacteristic$AI <- (1 + massCharacteristic$C - massCharacteristic$O - massCharacteristic$S - massCharacteristic$H*0.5)/(massCharacteristic$C - massCharacteristic$O - massCharacteristic$S - massCharacteristic$N - massCharacteristic$P)
+      massCharacteristic$AImod <- (1 + massCharacteristic$C - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$H*0.5)/(massCharacteristic$C - massCharacteristic$O*0.5 - massCharacteristic$S - massCharacteristic$N - massCharacteristic$P)
+      if(verbose) print(head(massCharacteristic))
+    }else{
+      warning('N, S, and P not found in elementKey. Not calculating DBE, AI, or AImod.')
+    }
+  }else{
+    warning('O, H, and C not found in elementKey. Not calculating OtoC, HtoC, DBE, AI, or AImod.')
+  }
   
   return(massCharacteristic)
 }
