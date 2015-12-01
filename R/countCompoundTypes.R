@@ -11,9 +11,11 @@
 #' @param fileOut A string specifying the output csv file.
 #' @param massHeader A string or array of strings specifying the name of the colum with the mass value (normally first colum). If
 #' this is an array then only one of the names should be valid for a given file (ie there can not be two columns named 'Mass' and 'm.z' if the defaults are not changed).
+#' @param elementKey a list of strings idenfying the counts for the elements. See \code{\link{readMass}} for details
 #' @param sampleRegStr A string that specifies the regular expression used to define sample columns. Note
 #' that R will frequently stick an 'X' infront of headers that are strictly digits.
 #' @param maxColReads A integer specifying the maximum number of columns to be read in at one time.
+#' @param calculateClass an array of strings identifying the types of counts to compile. Currently 'compound' [ex: Lipid], 'molecular' [ex: CNO], and 'aromaticity' [ex: Aliphatics] are valid options.
 #' @param verbose A boolean flag to print out useful flags during processing.
 #' 
 #' @return  a data.frame with the count table (this is also saved as a csv to the 
@@ -22,8 +24,8 @@
 #' 
 #' @import reshape2 plyr assertthat
 #' @export
-countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', 
-                               fileOut='countCompoundTypesOutput.csv', 
+countCompoundTypes <- function(fileIn, 
+                               fileOut=NULL, 
                                massHeader = c('Mass','m.z'),
                                elementKey = list(C='C', H='H', O='O', N='N', S='S', P='P'),
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
@@ -31,17 +33,19 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv',
                                calculateClass=c('compound', 'molecular', 'aromaticity'), 
                                verbose=FALSE){
   
+  assert_that(file.exists(fileIn))
   ##Check that we have all the mass characterizations that we need
   massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, elementKey=elementKey, verbose=verbose)
+  
   if(verbose) cat('reading in mass characteristics: [', names(massCharacteristic), ']\n')
   if('molecular' %in% calculateClass){
-    assert_that(c('C', 'N', 'S', 'P') %in% names(massCharacteristic))
+    assert_that(all(c('C', 'N', 'S', 'P') %in% names(massCharacteristic)))
   }
   if('compound' %in% calculateClass){
-    assert_that(c('OtoC', 'HtoC') %in% names(massCharacteristic))
+    assert_that(all(c('OtoC', 'HtoC') %in% names(massCharacteristic)))
   }
   if('aromaticity' %in% calculateClass){
-    assert_that(c('OtoC', 'HtoC', 'N', 'AImod') %in% names(massCharacteristic))
+    assert_that(all(c('OtoC', 'HtoC', 'N', 'AImod') %in% names(massCharacteristic)))
   }
  
   ###Create the mass counts for each sample
@@ -155,7 +159,9 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv',
   }
   
   
-  write.csv(file=fileOut, compounds.df)
+  if(!is.null(fileOut)){
+    write.csv(file=fileOut, compounds.df)
+  }
   #return(list(total_peakss=compounds.df, massInfo=massCharacteristic)) #massCharacteristic is 3.2 Mb
   return(compounds.df)
 }
