@@ -6,14 +6,21 @@
 #' @param samplesToRead an array of indecies or regular expression or array of names of the samples to be read in
 #' @param verbose boolean flag for verbose outputs
 #'
-#' @return a data frame with the long table format with the sample ID, mass ID, and intensity
-#' @export
+#' @return a data frame with the long table format with the  mass ID, sample ID, and intensity
+#' @examples
+#' ##read samples by index (note this is the Nth sample not the Nth column)
+#' #readFTICR(fileIn='testfile.csv', samplesToRead=1:2)
+#' ##read samples by regular expression match of sample name
+#' #readFTICR(fileIn='testFile.csv', samplesToRead='out2\\d')
+#' ##read samples by matched name
+#' #readFTICR(fileIn='testFile.csv', samplesToRead=c('X.out20', 'X.out21'))
 #' @import reshape2 assertthat
 #'
-readFTICR <-  function(fileIn='data/smallTest.csv',
+#' @export
+readFTICR <-  function(fileIn,
                        massHeader = c('Mass','m.z'),
                        sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
-                       samplesToRead=1:2,
+                       samplesToRead,
                        verbose=FALSE){
   
   assert_that(file.exists(fileIn))
