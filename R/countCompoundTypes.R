@@ -15,7 +15,7 @@
 #' @param sampleRegStr A string that specifies the regular expression used to define sample columns. Note
 #' that R will frequently stick an 'X' infront of headers that are strictly digits.
 #' @param maxColReads A integer specifying the maximum number of columns to be read in at one time.
-#' @param calculateClass an array of strings identifying the types of counts to compile. Currently 'compound' [ex: Lipid], 'molecular' [ex: CNO], and 'aromaticity' [ex: Aliphatics] are valid options.
+#' @param calculateClass an array of strings identifying the types of counts to compile. Currently 'avergeRatio' [ex: OtoC_weightedMean], compound' [ex: Lipid], 'molecular' [ex: CNO], and 'aromaticity' [ex: Aliphatics] are valid options.
 #' @param verbose A boolean flag to print out useful flags during processing.
 #' 
 #' @return  a data.frame with the count table (this is also saved as a csv to the 
@@ -30,7 +30,7 @@ countCompoundTypes <- function(fileIn,
                                elementKey = list(C='C', H='H', O='O', N='N', S='S', P='P'),
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
                                maxColReads = 10, 
-                               calculateClass=c('compound', 'molecular', 'aromaticity'), 
+                               calculateClass=c('averageRatio', 'compound', 'molecular', 'aromaticity'), 
                                verbose=FALSE){
   
   assert_that(file.exists(fileIn))
@@ -57,46 +57,20 @@ countCompoundTypes <- function(fileIn,
   
   for(sampleIndex in splitCol.ls){
     if(verbose) cat(sprintf('processing sample: %d of %d ...\n', max(sampleIndex), sum(sampleCols)))
+    data.df <- merge(massCharacteristic, readFTICR(fileIn=fileIn, massHeader = massHeader,
+                                                   sampleRegStr = sampleRegStr,
+                                                   samplesToRead=sampleIndex))
     
-    #Flag the mass header to be read in
-    colToReadIn <- names(header.df) %in% massHeader
-    #Flag the N columns to read in
-    colToReadIn[sampleCols][sampleIndex] <- TRUE
-    
-    colReadArr <- as.character(colToReadIn)
-    colReadArr[colToReadIn] <- 'numeric'
-    colReadArr[!colToReadIn] <- 'NULL'
-    
-    data.df <- read.csv(fileIn, colClasses=colReadArr)
-    data.df <- melt(data.df, id.vars=massHeader[massHeader %in% names(data.df)], variable.name='sample', value.name='intensity')
-    
-    #removing instensities at or below zero
-    #..this is where the 0 mass's are removed for each sample for final count
-    data.df<-data.df[data.df$intensity > 0,]
-    
-    #combined tables to list m/z for specific samples
-    data.df <- merge(massCharacteristic, data.df)
-    
-    categoryCuts <- function(xx, ranges=list(OtoC=c(0,1)), inclusive=list(OtoC=c(TRUE, TRUE)), 
-                             na.rm=TRUE){
-      assert_that(identical(names(ranges), names(inclusive) ))
-      ans = 1
-      for(nameStr in names(ranges)){
-        ans <- ans *((ranges[[nameStr]][1] < xx[[nameStr]]) + 
-                       inclusive[[nameStr]][1]*(ranges[[nameStr]][1]==xx[[nameStr]]))*
-          ((ranges[[nameStr]][2] > xx[[nameStr]]) + 
-             inclusive[[nameStr]][2]*(ranges[[nameStr]][2]==xx[[nameStr]]))
-      }
-      
-      return(sum(ans > 0, na.rm=TRUE))
-    }
     
     #assign counts to each sample based on the ratios associated with each mass
     temp.df <- ddply(data.df, c('sample'), function(xx){
-      ans2 <- data.frame(total_peaks = sum(xx$C >= 0, na.rm = TRUE),
-                         aveOtoC = mean(xx$OtoC, na.rm = TRUE),
-                         aveHtoC = mean(xx$HtoC, na.rm = TRUE))
-      
+      ans2 <- data.frame(total_peaks = sum(xx$intensity >= 0, na.rm = TRUE))
+      if('averageRatio' %in% calculateClass){
+        ans2 <- cbind(ans2, data.frame( 
+                         OtoC_weightedMean=sum(xx$OtoC*xx$intensity, na.rm=TRUE)/sum(is.finite(xx$OtoC)*xx$intensity, na.rm=TRUE), 
+                         HtoC_weightedMean=sum(xx$HtoC*xx$intensity, na.rm=TRUE)/sum(is.finite(xx$HtoC)*xx$intensity, na.rm=TRUE),
+                         OtoC_mean=mean(xx$OtoC, na.rm=TRUE), HtoC_mean=mean(xx$HtoC, na.rm=TRUE)))
+      }
       if('molecular' %in% calculateClass){
         ans2 <- cbind(ans2, data.frame(
           CHO = sum(xx$C > 0 & xx$N == 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE ), 
@@ -106,9 +80,10 @@ countCompoundTypes <- function(fileIn,
           CHONS = sum(xx$C > 0 & xx$N > 0 & xx$S > 0 & xx$P == 0, na.rm = TRUE ),
           CHONP = sum(xx$C > 0 & xx$N > 0 & xx$S == 0 & xx$P > 0, na.rm = TRUE ),
           CHOSP = sum(xx$C > 0 & xx$N == 0 & xx$S > 0 & xx$P > 0, na.rm = TRUE ),
-          CHONSP = sum(xx$C > 0 & xx$N > 0 & xx$S > 0 & xx$P > 0, na.rm = TRUE ),
-          Molecular_NA =sum(xx$C == 0 & xx$N == 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE )))
+          CHONSP = sum(xx$C > 0 & xx$N > 0 & xx$S > 0 & xx$P > 0, na.rm = TRUE )))
+          ans2$Molecular_NA <- ans2$total_peaks - rowSums(ans2[,c("CHO", "CHON", "CHOS", "CHOP", "CHONS", "CHONP", "CHOSP", "CHONSP")]) 
       }
+      
       if('compound' %in% calculateClass){
         #November 2015 BOUNDARIES that we have been using: (M Tfaily)
         #class   O:C(low) O:C(high) H:C(low) H:C(high)
@@ -164,5 +139,27 @@ countCompoundTypes <- function(fileIn,
   }
   #return(list(total_peakss=compounds.df, massInfo=massCharacteristic)) #massCharacteristic is 3.2 Mb
   return(compounds.df)
+}
+
+#' Count the number of occurances inside a range
+#'
+#' @param xx a dataframe with names matching those in ranges and inclusive. Values within range to be counted
+#' @param ranges a list of arrays of length 2 with the (min, max) cut off values
+#' @param inclusive a list of arrays of length 2 with the flags to include (lower, upper) cut off values in rante
+#' @param na.rm ignore na values 
+#'
+#' @return a count times the value in xx fell within range of interest
+categoryCuts <- function(xx, ranges=list(OtoC=c(0,1)), inclusive=list(OtoC=c(TRUE, TRUE)), 
+                         na.rm=TRUE){
+  assert_that(identical(names(ranges), names(inclusive) ))
+  ans = 1
+  for(nameStr in names(ranges)){
+    ans <- ans *((ranges[[nameStr]][1] < xx[[nameStr]]) + 
+                   inclusive[[nameStr]][1]*(ranges[[nameStr]][1]==xx[[nameStr]]))*
+      ((ranges[[nameStr]][2] > xx[[nameStr]]) + 
+         inclusive[[nameStr]][2]*(ranges[[nameStr]][2]==xx[[nameStr]]))
+  }
+  
+  return(sum(ans > 0, na.rm=TRUE))
 }
 
