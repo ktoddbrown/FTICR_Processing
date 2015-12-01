@@ -11,8 +11,12 @@ Vignette proposed
 - histogram: Abundence of type X (ie 'lipid') across samples
 
 Function wish list
-- NMNDNS (NMDS) and PCA (package, vegan/FactorMineR already does alot of this)
+- NMNDNS (NDMS) and PCA (package, vegan/FactorMineR already does alot of this)
 - Kendric plot
   + mass vs Kendric mass defect (mass/ [mass of CH2 or COO])
-- plot C number vs HC/DEB/OC
+- plot C number vs HtoC/DBE/OtoC
+- plot O number vs DBE
 - Cluster analysis of presence/absence for mass:charge
+- plot(x=Cnumber, y=occurance, color=Onumber or DBE)
+- aggregate groups of sample by common and 'mostly' common
+  |- compare groups across treatments w/ ven diagrams (common vs unique)
