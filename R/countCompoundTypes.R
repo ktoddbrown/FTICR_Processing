@@ -24,8 +24,7 @@
 #' 
 #' @import reshape2 plyr assertthat
 #' @export
-countCompoundTypes <- function(fileIn, 
-                               fileOut=NULL, 
+countCompoundTypes <- function(fileIn, fileOut=NULL, 
                                massHeader = c('Mass','m.z'),
                                elementKey = list(C='C', H='H', O='O', N='N', S='S', P='P'),
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
