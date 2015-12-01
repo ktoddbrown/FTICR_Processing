@@ -24,18 +24,18 @@
 #' @export
 countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
-                               carbonHeaders = c('C', 'X13C', 'C13')[1],
+                               carbonHeader = c('C', 'X13C', 'C13')[1],
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
                                maxColReads = 10, 
                                calculateClass=c('compound', 'molecular', 'aromaticity'), 
-                               verbose=TRUE){
+                               verbose=FALSE){
   #@date October 2015
   #' @author K Todd-Brown \email{ktoddbrown@gmail.com}
   #' @author A P Smith
   #' @author M Tfaily
   header.df <- read.csv(fileIn, nrows=1)
   
-  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, carbonHeaders=carbonHeaders, verbose=verbose)
+  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, carbonHeader=carbonHeader, verbose=verbose)
  
   ###Create the mass counts for each sample
   compounds.df <- data.frame()
@@ -136,6 +136,7 @@ countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='co
           Aromatic = sum(xx$AImod <= 0.66 & xx$AImod > 0.5, na.rm = TRUE),
           LigninPhenolics = sum(xx$AImod <= 0.5 & xx$HtoC < 2.0, na.rm = TRUE)
         ))
+        ans2$Aromaticity_NA <- ans2$total_peaks-rowSums(ans2[, c('Aliphatics', 'AliphaticsN', 'Saturated', 'Condensed_Aromatics', 'Aromatic', 'LigninPhenolics')])
         }
       
       return(ans2)
