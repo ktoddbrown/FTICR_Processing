@@ -1,6 +1,5 @@
 #' Convert FT-ICR data to counts of compound classes
 #' 
-#' @decription
 #' To convert FT-ICR intensity to compound classes, this function 1) discards masses that are of 0 intensity
 #' 2) counts the number of masses for each sample which fall between specified C:H:O ratios which define the following
 #' compound classes: (lipids, unsaturated hydrocarbons, proteins, lignins, carbohydrates, amino sugars, tannins,
@@ -12,34 +11,31 @@
 #' @param fileOut A string specifying the output csv file.
 #' @param massHeader A string or array of strings specifying the name of the colum with the mass value (normally first colum). If
 #' this is an array then only one of the names should be valid for a given file (ie there can not be two columns named 'Mass' and 'm.z' if the defaults are not changed).
-#' @param ratioHeader A string or array of strings specifying the columns with the elemental counts associated with
-#' each mass. There can be extra strings in this array which do not match column headers, this will be ignored.
 #' @param sampleRegStr A string that specifies the regular expression used to define sample columns. Note
 #' that R will frequently stick an 'X' infront of headers that are strictly digits.
 #' @param maxColReads A integer specifying the maximum number of columns to be read in at one time.
 #' @param verbose A boolean flag to print out useful flags during processing.
 #' 
-#' @output  a data.frame with the count table (this is also saved as a csv to the 
+#' @return  a data.frame with the count table (this is also saved as a csv to the 
 #' specified output file)
 #' 
-#' @date October 2015
-#' @author K Todd-Brown \email{ktoddbrown@gmail.com}
-#' @author A P Smith
-#' @author M Tfaily
 #' 
 #' @import reshape2 plyr assertthat
-#' 
+#' @export
 countCompoundTypes <- function(fileIn='countCompoundTypesInput.csv', fileOut='countCompoundTypesOutput.csv', 
                                massHeader = c('Mass','m.z'),
-                               ratioHeaders = c('C', 'H','O', 'N', 'X13C', 'S', 'P', 'C13'),
+                               carbonHeaders = c('C', 'X13C', 'C13')[1],
                                sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
                                maxColReads = 10, 
                                calculateClass=c('compound', 'molecular', 'aromaticity'), 
                                verbose=TRUE){
-  
+  #@date October 2015
+  #' @author K Todd-Brown \email{ktoddbrown@gmail.com}
+  #' @author A P Smith
+  #' @author M Tfaily
   header.df <- read.csv(fileIn, nrows=1)
   
-  massCharacteristic <- readMass(fileIn, massHeader, elementHeader, verbose)
+  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, carbonHeaders=carbonHeaders, verbose=verbose)
  
   ###Create the mass counts for each sample
   compounds.df <- data.frame()
