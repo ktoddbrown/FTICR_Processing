@@ -60,7 +60,7 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
                                                    sampleRegStr = sampleRegStr,
                                                    samplesToRead=sampleIndex))
     
-    
+    if(verbose) cat('making tables...\n')
     #assign counts to each sample based on the ratios associated with each mass
     temp.df <- ddply(data.df, c('sample'), function(xx){
       ans2 <- data.frame(total_peaks = sum(xx$intensity >= 0, na.rm = TRUE))
