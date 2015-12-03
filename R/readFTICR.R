@@ -17,10 +17,7 @@
 #' @import reshape2 assertthat
 #'
 #' @export
-readFTICR <-  function(fileIn,
-                       massHeader = c('Mass','m.z'),
-                       sampleRegStr = '(X.out)|(^X\\d+$)|(std)|(IntCal_)',
-                       samplesToRead,
+readFTICR <-  function(fileIn, massHeader, sampleRegStr=NULL, samplesToRead = NULL, elementKey=NULL,
                        verbose=FALSE){
   
   assert_that(file.exists(fileIn))
@@ -30,46 +27,67 @@ readFTICR <-  function(fileIn,
   if(verbose) cat('file has [', dim(header.df)[2], '] columns\n')
   
   #Flag the mass header to be read in
-  colToReadIn <- names(header.df) %in% massHeader
-  readInCount <- 0
-  if(is.numeric(samplesToRead)){
-    sampleCols <- grepl(sampleRegStr, names(header.df))
-    readInCount <- sum(sampleCols)
-    if(any(samplesToRead > readInCount)){
-      warning('Requesting sample index past maximum sample count. Truncating sample indecies.')
-      samplesToRead <- samplesToRead[samplesToRead <= readInCount]
-    }
-    
-    sampleCols[sampleCols][-1*samplesToRead] <- FALSE
-    #Flag the N columns to read in 
-    colToReadIn[sampleCols] <- TRUE
-  }else if(is.character(samplesToRead)){
-    if(length(samplesToRead) == 1){
-      colToReadIn <- colToReadIn | grepl(samplesToRead, names(header.df))    
-      readInCount <- sum(grepl(samplesToRead, names(header.df)))
-    }else{
-      colToReadIn <- colToReadIn | names(header.df) %in% samplesToRead
-      readInCount <- sum(names(header.df) %in% samplesToRead)
-    }
+  if(is.null(elementKey)){
+    elementHeader <- c()
   }else{
-    stop('Badly defined samples: ', samplesToRead)
+    elementHeader <- unlist(elementKey)
+  }
+  colToReadIn <- names(header.df) %in% c(massHeader, elementHeader)
+  massColCount <- sum(colToReadIn)
+  
+  ##Read in samples if specified
+  readInCount <- 0
+  if(!is.null(sampleRegStr)){
+    if(is.numeric(samplesToRead)){
+      sampleCols <- grepl(sampleRegStr, names(header.df))
+      readInCount <- sum(sampleCols)
+      if(any(samplesToRead > readInCount)){
+        warning('Requesting sample index past maximum sample count. Truncating sample indecies.')
+        samplesToRead <- samplesToRead[samplesToRead <= readInCount]
+      }
+      
+      sampleCols[sampleCols][-1*samplesToRead] <- FALSE
+      #Flag the N columns to read in 
+      colToReadIn[sampleCols] <- TRUE
+    }else if(is.character(samplesToRead)){
+      if(length(samplesToRead) == 1){
+        colToReadIn <- colToReadIn | grepl(samplesToRead, names(header.df))    
+        readInCount <- sum(grepl(samplesToRead, names(header.df)))
+      }else{
+        colToReadIn <- colToReadIn | names(header.df) %in% samplesToRead
+        readInCount <- sum(names(header.df) %in% samplesToRead)
+      }
+    }else{
+      stop('Badly defined samples: ', samplesToRead)
+    }
   }
   
   colReadArr <- as.character(colToReadIn)
   colReadArr[colToReadIn] <- 'numeric'
   colReadArr[!colToReadIn] <- 'NULL'
   
-  if(verbose) cat('reading in ', sum(colReadArr %in% 'numeric')-1, 'of', readInCount,'samples\n')
+  if(verbose) cat('reading in ', massColCount, ' id columns and ', readInCount,'samples [total:', sum(colToReadIn),']\n')
   data.df <- read.csv(fileIn, colClasses=colReadArr)
   if(verbose) print(head(data.df))
   
-  if(verbose) cat('making samples long table\n')
-  data.df <- melt(data.df, id.vars=massHeader[massHeader %in% names(data.df)], variable.name='sample', value.name='intensity')
+  if(!is.null(sampleRegStr)){
+    if(verbose) cat('making samples long table\n')
+    data.df <- melt(data.df, id.vars=c(massHeader[massHeader %in% names(data.df)], names(elementKey)), variable.name='sample', value.name='intensity')
+    
+    if(verbose) cat('removing ', sum(data.df$intensity <= 0), ' with no intensity signal\n')
+    #removing instensities at or below zero
+    #..this is where the 0 mass's are removed for each sample for final count
+    data.df<-data.df[data.df$intensity > 0,]
+    sampleIDs <- c(massHeader[massHeader %in% names(data.df)], 
+                   'sample', 'intensity')
+  }else{
+    sampleIDs <- massHeader[massHeader %in% names(data.df)]
+  }
   
-  if(verbose) cat('removing ', sum(data.df$intensity <= 0), ' with no intensity signal\n')
-  #removing instensities at or below zero
-  #..this is where the 0 mass's are removed for each sample for final count
-  data.df<-data.df[data.df$intensity > 0,]
+  if(!is.null(elementKey)){
+    if(verbose)cat('make ratios and indexes for compounds\n')
+    data.df <- normalizeMassNotation(data.df, sampleIDs=sampleIDs, elementKey=elementKey, verbose=verbose)
+  }
   
   return(data.df)
 }

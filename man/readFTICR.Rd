@@ -4,9 +4,8 @@
 \alias{readFTICR}
 \title{Read in chuncks of an FT-ICR-MS file}
 \usage{
-readFTICR(fileIn, massHeader = c("Mass", "m.z"),
-  sampleRegStr = "(X.out)|(^X\\\\d+$)|(std)|(IntCal_)", samplesToRead,
-  verbose = FALSE)
+readFTICR(fileIn, massHeader, sampleRegStr = NULL, samplesToRead = NULL,
+  elementKey = NULL, verbose = FALSE)
 }
 \arguments{
 \item{fileIn}{a string identifying the csv file to read our FT-ICR-MS data from}

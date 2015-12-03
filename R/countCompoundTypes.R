@@ -33,20 +33,7 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
                                verbose=FALSE){
   
   assert_that(file.exists(fileIn))
-  ##Check that we have all the mass characterizations that we need
-  massCharacteristic <- readMass(fileIn=fileIn, massHeader=massHeader, elementKey=elementKey, verbose=verbose)
   
-  if(verbose) cat('reading in mass characteristics: [', names(massCharacteristic), ']\n')
-  if('molecular' %in% calculateClass){
-    assert_that(all(c('C', 'N', 'S', 'P') %in% names(massCharacteristic)))
-  }
-  if('compound' %in% calculateClass){
-    assert_that(all(c('OtoC', 'HtoC') %in% names(massCharacteristic)))
-  }
-  if('aromaticity' %in% calculateClass){
-    assert_that(all(c('OtoC', 'HtoC', 'N', 'AImod') %in% names(massCharacteristic)))
-  }
- 
   ###Create the mass counts for each sample
   header.df <- read.csv(fileIn, nrows=1)
   
@@ -56,9 +43,10 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
   
   for(sampleIndex in splitCol.ls){
     if(verbose) cat(sprintf('processing sample: %d of %d ...\n', max(sampleIndex), sum(sampleCols)))
-    data.df <- merge(massCharacteristic, readFTICR(fileIn=fileIn, massHeader = massHeader,
-                                                   sampleRegStr = sampleRegStr,
-                                                   samplesToRead=sampleIndex))
+    data.df <- readFTICR(fileIn=fileIn, massHeader = massHeader,
+                         sampleRegStr = sampleRegStr,
+                         samplesToRead=sampleIndex,
+                         elementKey=elementKey,verbose=verbose)
     
     if(verbose) cat('making tables...\n')
     #assign counts to each sample based on the ratios associated with each mass
@@ -71,6 +59,7 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
                          OtoC_mean=mean(xx$OtoC, na.rm=TRUE), HtoC_mean=mean(xx$HtoC, na.rm=TRUE)))
       }
       if('molecular' %in% calculateClass){
+        assert_that(all(c('C', 'N', 'S', 'P') %in% names(xx)))
         ans2 <- cbind(ans2, data.frame(
           CHO = sum(xx$C > 0 & xx$N == 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE ), 
           CHON = sum(xx$C > 0 & xx$N > 0 & xx$S == 0 & xx$P == 0, na.rm = TRUE ),
@@ -94,6 +83,7 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
         #carb      >0.7   1.5       1.5        2.5
         #lignin    >0.125 0.65      0.8       <1.5
         #tannin    >0.65  1.1       0.8       <1.5
+        assert_that(all(c('OtoC', 'HtoC') %in% names(xx)))
         ans2 <- cbind(ans2, data.frame(
           Lipids = categoryCuts(xx, ranges=list(OtoC=c(0, 0.3), HtoC=c(1.5, 2.5)), 
                                 inclusive=list(OtoC=c(FALSE, TRUE), HtoC=c(TRUE,TRUE))),
@@ -136,7 +126,6 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
   if(!is.null(fileOut)){
     write.csv(file=fileOut, compounds.df)
   }
-  #return(list(total_peakss=compounds.df, massInfo=massCharacteristic)) #massCharacteristic is 3.2 Mb
   return(compounds.df)
 }
 
