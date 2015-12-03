@@ -1,0 +1,80 @@
+---
+title: "Common visualizations for FT-ICR-MS"
+author: "K Todd-Brown"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Common visualizations for FT-ICR-MS}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+There are a series of very common graphics used in FT-ICR-MS analysis. 
+This vignette will walk you through several of them.
+
+###Load data
+
+```{r librarys}
+library(FTICRProcessing)
+library(ggplot2)
+library(knitr)
+```
+
+```{r echo=FALSE}
+inputFile <- '../private/data/FTICRoutput.csv'
+```
+
+```{r eval=FALSE}
+inputFile <- 'data/ProcessedOutput.csv'
+```
+
+Just to give you an idea of the file format:
+```{r loadcsv}
+fileFormat <- read.csv(inputFile)[,c('m.z',  'X.out1.',  'X.out10.',  'X.out11.', 'X.out12.', 'C', 'H',  'O', 'N', 'X13C', 'S', 'P')]
+kable(head(fileFormat[fileFormat[, 'X.out1.'] > 0,]))
+```
+
+###Van Krevlen plot
+Create a Van Krevlen plot using both the log of the intensity and the precense of S or N for coloration.
+
+```{r vanKrevlen, warning=FALSE, fig.width=4, fig.height=4}
+mc <- readMass(inputFile, massHeader = 'm.z')
+
+for(setNum in 1){
+  msData <- readFTICR(inputFile, massHeader='m.z', sampleRegStr='X.out', samplesToRead=1:9+setNum*9)
+  print(ggplot(merge(msData, mc)) + 
+          geom_point(aes(x=OtoC, y=HtoC, color=log(intensity)), alpha=0.5) + 
+          facet_wrap(~sample))
+  print(ggplot(merge(msData, mc)) + 
+          geom_point(aes(x=OtoC, y=HtoC, color=(S>0 | N > 0)), alpha=0.5) + 
+          facet_wrap(~sample))
+}
+```
+
+###Plot oxygen histogram
+```{r oxyHist, warning=FALSE, fig.width=4, fig.height=4}
+mc <- readMass(inputFile, massHeader = 'm.z')
+
+for(setNum in 1){
+  msData <- readFTICR(inputFile, massHeader='m.z', sampleRegStr='X.out', samplesToRead=1:9+setNum*9)
+  data.df <- merge(msData, mc)
+  print(ggplot(data.df) + 
+          geom_histogram(aes(x=O, y=..density..)) + xlim(1, max(data.df$O, na.rm=TRUE)) +
+          facet_wrap(~sample))
+  print(ggplot(data.df) + 
+          geom_histogram(aes(x=O)) + xlim(1, max(data.df$O, na.rm=TRUE)) + 
+          facet_wrap(~sample))
+}
+```
+
+###Plot Kendrick mass deficit
+```{r Kendrick, warning=FALSE, fig.width=4, fig.height=4}
+CO2mass <- 44.01
+CH4mass <- 16.04
+for(setNum in 1){
+  msData <- readFTICR(inputFile, massHeader='m.z', sampleRegStr='X.out', samplesToRead=1:9+setNum*9)
+  
+  print(ggplot(msData) +
+          geom_point(aes(x=m.z, y=m.z/CO2mass)))
+}
+```
