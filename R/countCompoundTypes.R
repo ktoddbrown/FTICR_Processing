@@ -46,7 +46,7 @@ countCompoundTypes <- function(fileIn, fileOut=NULL,
     data.df <- readFTICR(fileIn=fileIn, massHeader = massHeader,
                          sampleRegStr = sampleRegStr,
                          samplesToRead=sampleIndex,
-                         elementKey=elementKey,verbose=verbose)
+                         elementKey=elementKey, verbose=verbose)
     
     if(verbose) cat('making tables...\n')
     #assign counts to each sample based on the ratios associated with each mass

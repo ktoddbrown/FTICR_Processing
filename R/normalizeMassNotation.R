@@ -14,31 +14,31 @@ normalizeMassNotation <- function(data.df, sampleIDs,
                                   verbose=FALSE){
   assert_that(class(data.df) %in% 'data.frame')
   ##Force expected naming conventions
-  for(elementStr in names(elementKey)){
-    if(sum(names(data.df) %in% elementKey[[elementStr]]) == 0){
-      stop('column name in elementKey does not match csv table: ', elementKey[elementStr])
-    }
-    if(sum(names(data.df) %in% elementKey[[elementStr]]) > 1){
-      if(verbose) cat('merging', elementStr,'counts; ')
-      data.df[[elementStr]] <- rowSums(data.df[,names(data.df) %in% elementKey[[elementStr]]])
-    }else{
-      if(verbose) cat('forcing',elementStr,'header name; ')
-      data.df[[elementStr]] <- data.df[,names(data.df) %in% elementKey[[elementStr]]]
-    }
-  }
+#   for(elementStr in unlist(elementKey)){
+#     if(sum(names(data.df) %in% elementKey[[elementStr]]) == 0){
+#       stop('column name in elementKey does not match csv table: ', elementKey[elementStr])
+#     }
+#     if(sum(names(data.df) %in% elementKey[[elementStr]]) > 1){
+#       if(verbose) cat('merging', elementStr,'counts; ')
+#       data.df[[elementStr]] <- rowSums(data.df[,names(data.df) %in% elementKey[[elementStr]]])
+#     }else{
+#       if(verbose) cat('forcing',elementStr,'header name; ')
+#       data.df[[elementStr]] <- data.df[,names(data.df) %in% elementKey[[elementStr]]]
+#     }
+#   }
   if(verbose) cat('\n')
   if(verbose) print(head(data.df))
   
   ##Only return expected convention
-  data.df <- data.df[,c(sampleIDs, names(elementKey))]
+  data.df <- data.df[,c(sampleIDs, unlist(elementKey))]
   
   ###Make metrics
-  if(all(c('C', 'H', 'O') %in% names(elementKey))){
+  if(all(c('C', 'H', 'O') %in% names(data.df))){
     if(verbose) cat('calculating: OtoC, HtoC\n')
     data.df$OtoC <- data.df$O/data.df$C
     data.df$HtoC <- data.df$H/data.df$C
     
-    if(all(c('N', 'S', 'P') %in% names(elementKey))){
+    if(all(c('N', 'S', 'P') %in% names(data.df))){
       if(verbose) cat('calculating: DBE, AI, AImod\n')
       #Koch, B. P. and Dittmar, T.: From mass to structure: an aromaticity index for high-resolution mass data of natural organic matter, Rapid Commun. Mass Spectrom., 20(5), 926–932, doi:10.1002/rcm.2386, 2006.
       data.df$DBE <- 1+ 0.5*(2*data.df$C - data.df$H + data.df$N + data.df$P)

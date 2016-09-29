@@ -30,7 +30,7 @@ readFTICR <-  function(fileIn, massHeader, sampleRegStr=NULL, samplesToRead = NU
   if(is.null(elementKey)){
     elementHeader <- c()
   }else{
-    elementHeader <- unlist(elementKey)
+    elementHeader <- names(elementKey)
   }
   colToReadIn <- names(header.df) %in% c(massHeader, elementHeader)
   massColCount <- sum(colToReadIn)
@@ -68,11 +68,14 @@ readFTICR <-  function(fileIn, massHeader, sampleRegStr=NULL, samplesToRead = NU
   
   if(verbose) cat('reading in ', massColCount, ' id columns and ', readInCount,'samples [total:', sum(colToReadIn),']\n')
   data.df <- read.csv(fileIn, colClasses=colReadArr)
-  if(verbose) print(head(data.df))
+  if(verbose){cat('orginal column names\n'); print(head(data.df))}
+  data.df <- rename(data.df, elementKey)
+
+  if(verbose){cat('renaming colums according to element key\n'); print(head(data.df))}
   
   if(!is.null(sampleRegStr)){
     if(verbose) cat('making samples long table\n')
-    data.df <- melt(data.df, id.vars=c(massHeader[massHeader %in% names(data.df)], names(elementKey)), variable.name='sample', value.name='intensity')
+    data.df <- melt(data.df, id.vars=c(massHeader[massHeader %in% names(data.df)], elementKey), variable.name='sample', value.name='intensity')
     
     if(verbose) cat('removing ', sum(data.df$intensity <= 0), ' with no intensity signal\n')
     #removing instensities at or below zero
@@ -83,6 +86,7 @@ readFTICR <-  function(fileIn, massHeader, sampleRegStr=NULL, samplesToRead = NU
   }else{
     sampleIDs <- massHeader[massHeader %in% names(data.df)]
   }
+  
   
   if(!is.null(elementKey)){
     if(verbose)cat('make ratios and indexes for compounds\n')
